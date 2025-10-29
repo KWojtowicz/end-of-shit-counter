@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flip Clock & Countdown</title>
+  <style>
+    html { height: 100%; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: #EEE;
+    }
+    .flip-clock {
+      text-align: center;
+      perspective: 400px;
+      margin: 20px auto;
+    }
+    .flip-clock *,
+    .flip-clock *:before,
+    .flip-clock *:after {
+      box-sizing: border-box;
+    }
+    .flip-clock__piece {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 14px;
+    }
+    .flip-clock__slot {
+      display: block;
+      font-size: 1.2vw;
+      opacity: 0.7;
+      line-height: 1;
+      margin-top: 0.2rem;
+    }
+    .card {
+      display: inline-block;
+      position: relative;
+      padding-bottom: 0.72em;
+      font-size: 9vw;
+      line-height: 0.95;
+      border-radius: 18px;
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15)) drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+    }
+    .card__top,
+    .card__bottom,
+    .card__back::before,
+    .card__back::after {
+      display: block;
+      height: 0.72em;
+      color: #fff;
+      background: #1f1f1f;
+      padding: 0.25em 0.25em;
+      border-radius: 0.18em 0.18em 0 0;
+      backface-visiblity: hidden;
+      transform-style: preserve-3d;
+      width: 1.8em;
+      transform: translateZ(0);
+    }
+    .card__bottom {
+      color: #fff;
+      position: absolute;
+      top: 50%;
+      left: 0;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      background: #262626;
+      border-radius: 0 0 0.18em 0.18em;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .card__bottom::after {
+      display: block;
+      margin-top: -0.72em;
+    }
+    .card__back::before,
+    .card__bottom::after {
+      content: attr(data-value);
+    }
+    .card__back {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      left: 0%;
+      pointer-events: none;
+    }
+    .card__back::before {
+      position: relative;
+      z-index: -1;
+      overflow: hidden;
+    }
+    .flip .card__back::before {
+      -webkit-animation: flipTop 0.3s cubic-bezier(0.37, 0.01, 0.94, 0.35);
+              animation: flipTop 0.3s cubic-bezier(0.37, 0.01, 0.94, 0.35);
+      -webkit-animation-fill-mode: both;
+              animation-fill-mode: both;
+      transform-origin: center bottom;
+    }
+    .flip .card__back .card__bottom {
+      transform-origin: center top;
+      -webkit-animation-fill-mode: both;
+              animation-fill-mode: both;
+      -webkit-animation: flipBottom 0.6s cubic-bezier(0.15, 0.45, 0.28, 1);
+              animation: flipBottom 0.6s cubic-bezier(0.15, 0.45, 0.28, 1);
+    }
+    @-webkit-keyframes flipTop {
+      0% { transform: rotateX(0deg); z-index: 2; }
+      0%,99% { opacity: 0.99; }
+      100% { transform: rotateX(-90deg); opacity: 0; }
+    }
+    @keyframes flipTop {
+      0% { transform: rotateX(0deg); z-index: 2; }
+      0%,99% { opacity: 0.99; }
+      100% { transform: rotateX(-90deg); opacity: 0; }
+    }
+    @-webkit-keyframes flipBottom {
+      0%,50% { z-index: -1; transform: rotateX(90deg); opacity: 0; }
+      51% { opacity: 0.99; }
+      100% { opacity: 0.99; transform: rotateX(0deg); z-index: 5; }
+    }
+    @keyframes flipBottom {
+      0%,50% { z-index: -1; transform: rotateX(90deg); opacity: 0; }
+      51% { opacity: 0.99; }
+      100% { opacity: 0.99; transform: rotateX(0deg); z-index: 5; }
+    }
+    .afterhours{
+      font-size: 6vw;
+      text-transform: uppercase;
+      opacity: 0.9;
+      letter-spacing: 0.08em;
+      line-height: 1;
+    }
+    .progress {
+      width: 60vw;
+      max-width: 640px;
+      height: 12px;
+      background: #d7d7d7;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 16px auto 0;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.12);
+    }
+    .progress__bar {
+      height: 100%;
+      width: 0%;
+      background: #1f1f1f;
+      transition: width 0.2s linear;
+    }
+    .progress__label {
+      margin-top: 8px;
+      font-size: 14px;
+      opacity: 0.7;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    console.clear();
+
+    function CountdownTracker(label, value){
+      var el = document.createElement('span');
+      el.className = 'flip-clock__piece';
+      el.innerHTML = '<b class="flip-clock__card card"><b class="card__top"></b><b class="card__bottom"></b><b class="card__back"><b class="card__bottom"></b></b></b>' +
+        '<span class="flip-clock__slot">' + label + '</span>';
+      this.el = el;
+      var top = el.querySelector('.card__top'),
+          bottom = el.querySelector('.card__bottom'),
+          back = el.querySelector('.card__back'),
+          backBottom = el.querySelector('.card__back .card__bottom');
+      this.update = function(val){
+        val = ('0' + val).slice(-2);
+        if (val !== this.currentValue) {
+          if (this.currentValue >= 0) {
+            back.setAttribute('data-value', this.currentValue);
+            bottom.setAttribute('data-value', this.currentValue);
+          }
+          this.currentValue = val;
+          top.innerText = this.currentValue;
+          backBottom.setAttribute('data-value', this.currentValue);
+          this.el.classList.remove('flip');
+          void this.el.offsetWidth;
+          this.el.classList.add('flip');
+        }
+      }
+      this.update(value);
+    }
+
+    function getTimeRemaining(endtime) {
+      var t = Date.parse(endtime) - Date.parse(new Date());
+      return {
+        'Total': t,
+        'Days': Math.floor(t / (1000 * 60 * 60 * 24)),
+        'Hours': Math.floor((t / (1000 * 60 * 60)) % 24),
+        'Minutes': Math.floor((t / 1000 / 60) % 60),
+        'Seconds': Math.floor((t / 1000) % 60)
+      };
+    }
+
+    function getTime() {
+      var t = new Date();
+      return {
+        'Total': t,
+        'Hours': t.getHours() % 12,
+        'Minutes': t.getMinutes(),
+        'Seconds': t.getSeconds()
+      };
+    }
+
+    function Clock(countdown, callback, onUpdate) {
+      countdown = countdown ? new Date(Date.parse(countdown)) : false;
+      callback = callback || function(){};
+      var updateFn = countdown ? getTimeRemaining : getTime;
+      this.el = document.createElement('div');
+      this.el.className = 'flip-clock';
+      var trackers = {},
+          t = updateFn(countdown),
+          key, timeinterval;
+      for (key in t) {
+        if (key === 'Total' || key === 'Days') continue;
+        trackers[key] = new CountdownTracker(key, t[key]);
+        this.el.appendChild(trackers[key].el);
+      }
+      var i = 0;
+      var self = this;
+      this.cancel = function() {
+        if (timeinterval) cancelAnimationFrame(timeinterval);
+      };
+      function updateClock() {
+        timeinterval = requestAnimationFrame(updateClock);
+        if (i++ % 10) return;
+        var t = updateFn(countdown);
+        if (onUpdate) onUpdate(t);
+        if (t.Total < 0) {
+          cancelAnimationFrame(timeinterval);
+          for (key in trackers) trackers[key].update(0);
+          callback();
+          return;
+        }
+        for (key in trackers) trackers[key].update(t[key]);
+      }
+      setTimeout(updateClock, 500);
+    }
+
+    // --- Daily work-window countdown: 07:00 → 16:30, else show "afterhours"
+    function todayAt(hours, minutes){
+      var d = new Date();
+      d.setHours(hours, minutes, 0, 0);
+      return d;
+    }
+    function inWorkWindow(now){
+      var start = todayAt(7, 0);
+      var end = todayAt(16, 30);
+      return { start, end, active: now >= start && now < end };
+    }
+    
+    var root = document.getElementById('app') || (function(){
+      var el = document.createElement('div');
+      el.id = 'app';
+      document.body.appendChild(el);
+      return el;
+    })();
+    
+    var currentMode = null; // 'countdown' | 'afterhours'
+    var currentClock = null;
+    
+    function render(){
+      var now = new Date();
+      var ww = inWorkWindow(now);
+      if (ww.active){
+        if (currentMode !== 'countdown'){
+          // switch to countdown
+          currentMode = 'countdown';
+          if (currentClock && currentClock.cancel) currentClock.cancel();
+          root.innerHTML = '';
+          // create progress bar under the clock
+          var prog = document.createElement('div');
+          prog.className = 'progress';
+          var progBar = document.createElement('div');
+          progBar.className = 'progress__bar';
+          prog.appendChild(progBar);
+          var progLabel = document.createElement('div');
+          progLabel.className = 'progress__label';
+          currentClock = new Clock(ww.end, function(){ /* when reaches 0 switch to afterhours */ render(); }, function(t){
+            // t.Total = ms remaining until end
+            var totalMs = ww.end - ww.start;
+            var remaining = Math.max(0, t.Total);
+            var pct = Math.max(0, Math.min(1, remaining / totalMs));
+            // filled part shows "time left"
+            progBar.style.width = (pct * 100).toFixed(2) + '%';
+            // label: percentage left only
+            progLabel.textContent = (pct * 100).toFixed(0) + '% left';
+          });
+          root.appendChild(currentClock.el);
+          root.appendChild(prog);
+          root.appendChild(progLabel);
+        }
+      } else {
+        if (currentMode !== 'afterhours'){
+          // switch to afterhours
+          currentMode = 'afterhours';
+          if (currentClock && currentClock.cancel) currentClock.cancel();
+          currentClock = null;
+          root.innerHTML = '<div class="afterhours">afterhours</div>';
+        }
+      }
+    }
+    render();
+    // Re-check periodically to flip modes at boundaries
+    setInterval(render, 15000);
+
+  </script>
+</body>
+</html>
